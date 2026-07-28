@@ -1,5 +1,13 @@
 # CAS EC-15 Serial Reader
 
+<p align="center">
+  <img
+    src="assets/cas_ec15.jpg"
+    alt="CAS EC-15 전자저울"
+    width="500"
+  />
+</p>
+
 CAS **EC-15 전자저울**의 RS-232 데이터를 USB-RS232 변환기를 통해 읽는 간단한 Python 도구입니다.
 
 - Ubuntu 에서 바로 실행
