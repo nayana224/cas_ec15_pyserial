@@ -22,6 +22,7 @@ setup(
     entry_points={
         "console_scripts": [
             "ec15_reader = ec15_reader:main",
+            "ec15_udev_setup = cas_ec15_pyserial.udev_setup:main",
             "ec15_weight_node = cas_ec15_pyserial.ros2_node:main",
         ],
     },

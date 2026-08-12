@@ -84,7 +84,7 @@ ROS 2 package 이름은 `cas_ec15_pyserial`, executable은 `ec15_weight_node`입
 | 항목 | 기본값 | 의미 |
 |---|---|---|
 | topic | `weight_g` | 안정 중량 [g], `std_msgs/msg/Float64` |
-| parameter `port` | `/dev/ttyUSB0` | EC-15가 연결된 serial port |
+| parameter `port` | `/dev/cas_ec15` | udev로 고정한 EC-15 serial port |
 | parameter `baudrate` | `9600` | `2400`, `4800`, `9600` 중 하나 |
 
 `weight_g`는 relative topic이므로 namespace 없이 실행하면 `/weight_g`가 됩니다.
@@ -107,13 +107,37 @@ source install/setup.bash
 
 ROS 2 Humble의 `ament_python` package 구조와 `console_scripts` entry point 방식을 사용합니다.
 
-### 실행
+### EC-15 장치 이름 고정
+
+`/dev/ttyUSB0`는 USB 연결 순서에 따라 바뀔 수 있으므로 ROS 2에서는 `/dev/cas_ec15` 별칭을 사용합니다.
+설정 도구는 현재 장치의 `vendor`, `product`, `serial`을 읽어 udev rule을 생성합니다.
+
+먼저 실제로 설치될 rule을 확인합니다.
 
 ```bash
-ros2 run cas_ec15_pyserial ec15_weight_node \
-  --ros-args \
-  -p port:=/dev/ttyUSB0 \
-  -p baudrate:=9600
+ros2 run cas_ec15_pyserial ec15_udev_setup show --device /dev/ttyUSB0
+```
+
+확인 후 한 번만 설치합니다. 이 단계에서는 `/etc/udev/rules.d/`를 수정하므로 `sudo` 비밀번호를 요청할 수 있습니다.
+
+```bash
+ros2 run cas_ec15_pyserial ec15_udev_setup install --device /dev/ttyUSB0
+```
+
+설치 결과를 확인합니다.
+
+```bash
+ls -l /dev/cas_ec15
+```
+
+장치가 바로 보이지 않으면 USB-RS232 변환기를 한 번 분리했다가 다시 연결합니다.
+
+### 실행
+
+udev 별칭 설정 후에는 별도 port 인자 없이 실행합니다.
+
+```bash
+ros2 run cas_ec15_pyserial ec15_weight_node
 ```
 
 다른 terminal에서 확인:
@@ -241,11 +265,11 @@ ROS 2 adapter는 대문자 `NET` 값만 발행합니다.
 
 ## 테스트
 
-하드웨어 없이 중량 문자열 parser를 확인할 수 있습니다.
+하드웨어 없이 중량 문자열 parser와 udev rule 생성 로직을 확인할 수 있습니다.
 
 ```bash
 ./ec15_check.sh --list
-.venv/bin/python -m unittest -v test_ec15_reader.py
+.venv/bin/python -m unittest -v test_ec15_reader.py test_udev_setup.py
 ```
 
 ROS 2 package는 workspace에서 다음 순서로 확인합니다.
@@ -257,13 +281,35 @@ source install/setup.bash
 ros2 pkg executables cas_ec15_pyserial
 ```
 
-정상이라면 `cas_ec15_pyserial ec15_weight_node`가 표시됩니다.
+정상이라면 다음 executable이 표시됩니다.
+
+```text
+cas_ec15_pyserial ec15_reader
+cas_ec15_pyserial ec15_udev_setup
+cas_ec15_pyserial ec15_weight_node
+```
 
 ---
 
 ## 문제 해결
 
-### `/dev/ttyUSB0` 권한 오류
+### `/dev/cas_ec15`이 보이지 않음
+
+udev rule 설치 여부와 현재 USB serial 장치를 확인합니다.
+
+```bash
+ls -l /dev/cas_ec15
+udevadm info --query=property --name=/dev/ttyUSB0
+```
+
+필요하면 rule을 다시 확인하고 설치합니다.
+
+```bash
+ros2 run cas_ec15_pyserial ec15_udev_setup show --device /dev/ttyUSB0
+ros2 run cas_ec15_pyserial ec15_udev_setup install --device /dev/ttyUSB0
+```
+
+### serial port 권한 오류
 
 현재 사용자를 `dialout` 그룹에 추가합니다.
 
@@ -272,12 +318,6 @@ sudo usermod -aG dialout "$USER"
 ```
 
 그다음 로그아웃 후 다시 로그인합니다.
-
-현재 terminal에서만 임시 확인하려면:
-
-```bash
-sudo chmod a+rw /dev/ttyUSB0
-```
 
 ### 포트가 보이지 않음
 
@@ -296,7 +336,7 @@ dmesg | tail -30
 2. 저울 설정 후 전원을 다시 켰는지 확인
 3. Baud rate가 프로그램과 같은지 확인
 4. TX/RX 크로스 배선 확인
-5. `/dev/ttyUSB0`가 실제 변환기 포트인지 확인
+5. `/dev/cas_ec15`가 실제 EC-15 변환기를 가리키는지 확인
 
 ### `No module named pip`
 
@@ -320,7 +360,8 @@ cas_ec15_pyserial/
 ├── cas_ec15_pyserial/
 │   ├── __init__.py
 │   ├── protocol.py
-│   └── ros2_node.py
+│   ├── ros2_node.py
+│   └── udev_setup.py
 ├── resource/
 │   └── cas_ec15_pyserial
 ├── .gitignore
@@ -332,16 +373,19 @@ cas_ec15_pyserial/
 ├── requirements.txt
 ├── setup.cfg
 ├── setup.py
-└── test_ec15_reader.py
+├── test_ec15_reader.py
+└── test_udev_setup.py
 ```
 
 | 파일 | 역할 |
 |---|---|
 | `cas_ec15_pyserial/protocol.py` | CLI와 ROS 2가 공유하는 EC-15 중량 parser |
 | `cas_ec15_pyserial/ros2_node.py` | 안정 중량 ROS 2 publisher |
+| `cas_ec15_pyserial/udev_setup.py` | EC-15 USB serial 장치의 `/dev/cas_ec15` udev rule 설정 |
 | `ec15_check.sh` | `.venv` 생성, pySerial 설치, 단독 reader 실행 |
 | `ec15_reader.py` | 시리얼 데이터 수신 확인용 CLI |
 | `test_ec15_reader.py` | 중량 문자열 parser 회귀 테스트 |
+| `test_udev_setup.py` | udev rule 생성 로직 테스트 |
 | `package.xml`, `setup.py`, `setup.cfg` | ROS 2 `ament_python` package metadata |
 | `EC_KOR_UM.pdf` | CAS EC 시리즈 사용자 매뉴얼 |
 

@@ -20,7 +20,7 @@ class Ec15WeightNode(Node):
     def __init__(self) -> None:
         super().__init__("ec15_weight_node")
 
-        self.declare_parameter("port", "/dev/ttyUSB0")
+        self.declare_parameter("port", "/dev/cas_ec15")
         self.declare_parameter("baudrate", 9600)
 
         port = self.get_parameter("port").value
