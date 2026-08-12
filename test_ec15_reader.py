@@ -3,7 +3,7 @@
 
 import unittest
 
-from ec15_reader import ScaleWeight, parse_weight
+from cas_ec15_pyserial.protocol import ScaleWeight, parse_weight
 
 
 class ParseWeightTest(unittest.TestCase):
