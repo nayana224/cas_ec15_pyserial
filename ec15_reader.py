@@ -4,9 +4,9 @@
 from __future__ import annotations
 
 import argparse
+import errno
 import re
 import sys
-import time
 from dataclasses import dataclass
 
 import serial
@@ -112,15 +112,18 @@ def read_scale(port: str, baudrate: int, raw: bool) -> int:
     except KeyboardInterrupt:
         print("\n수신을 종료합니다.")
         return 0
-    except PermissionError:
-        print(
-            f"권한 오류: {port}에 접근할 수 없습니다.\n"
-            '다음 명령 실행 후 로그아웃/로그인하세요:\n'
-            '  sudo usermod -aG dialout "$USER"',
-            file=sys.stderr,
-        )
-        return 2
     except SerialException as error:
+        if getattr(error, "errno", None) == errno.EACCES or (
+            error.args and error.args[0] == errno.EACCES
+        ):
+            print(
+                f"권한 오류: {port}에 접근할 수 없습니다.\n"
+                "다음 명령 실행 후 로그아웃/로그인하세요:\n"
+                '  sudo usermod -aG dialout "$USER"',
+                file=sys.stderr,
+            )
+            return 2
+
         print(f"시리얼 통신 오류: {error}", file=sys.stderr)
         return 3
 
