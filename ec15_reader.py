@@ -5,25 +5,13 @@ from __future__ import annotations
 
 import argparse
 import errno
-import re
 import sys
-from dataclasses import dataclass
 
 import serial
 from serial import SerialException
 from serial.tools import list_ports
 
-
-WEIGHT_PATTERN = re.compile(
-    r"^(?P<label>NET|net)\s*:?\s*(?P<value>[+-]?\d+(?:\.\d+)?)\s*(?P<unit>g|kg)?\s*$"
-)
-
-
-@dataclass(frozen=True)
-class ScaleWeight:
-    value: float
-    unit: str
-    stable: bool
+from cas_ec15_pyserial.protocol import ScaleWeight, parse_weight
 
 
 def available_ports() -> list[str]:
@@ -43,18 +31,6 @@ def choose_default_port() -> str | None:
         return preferred[0]
 
     return None
-
-
-def parse_weight(line: str) -> ScaleWeight | None:
-    match = WEIGHT_PATTERN.match(line.strip())
-    if match is None:
-        return None
-
-    return ScaleWeight(
-        value=float(match.group("value")),
-        unit=match.group("unit") or "g",
-        stable=match.group("label") == "NET",
-    )
 
 
 def print_ports() -> None:
