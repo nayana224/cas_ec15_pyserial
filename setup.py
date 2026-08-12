@@ -15,10 +15,10 @@ setup(
     ],
     install_requires=["setuptools", "pyserial>=3.5,<4.0"],
     zip_safe=True,
-    maintainer="nayana224",
+    maintainer="Inpyo Lee",
     maintainer_email="nayana224@users.noreply.github.com",
     description="CAS EC-15 RS-232 reader and ROS 2 weight publisher.",
-    license="TODO",
+    license="MIT",
     entry_points={
         "console_scripts": [
             "ec15_reader = ec15_reader:main",
