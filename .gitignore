@@ -13,8 +13,10 @@ htmlcov/
 venv/
 env/
 
-# Packaging
+# Packaging / colcon
 build/
+install/
+log/
 dist/
 *.egg-info/
 
