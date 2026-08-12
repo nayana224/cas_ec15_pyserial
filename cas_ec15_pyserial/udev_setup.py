@@ -46,7 +46,7 @@ def build_rule(properties: dict[str, str]) -> str:
 
 
 def install_rule(rule: str) -> None:
-    """생성한 rule을 설치하고 udev를 다시 적용한다."""
+    """생성한 rule을 설치하고 udev rule을 다시 읽는다."""
     with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", delete=False) as file:
         file.write(rule)
         temporary_path = Path(file.name)
@@ -57,10 +57,6 @@ def install_rule(rule: str) -> None:
             check=True,
         )
         subprocess.run(["sudo", "udevadm", "control", "--reload-rules"], check=True)
-        subprocess.run(
-            ["sudo", "udevadm", "trigger", "--subsystem-match=tty"],
-            check=True,
-        )
     finally:
         temporary_path.unlink(missing_ok=True)
 
@@ -100,6 +96,7 @@ def main() -> int:
         return 2
 
     print(f"설치 완료: {RULE_PATH}")
+    print("USB-RS232 변환기를 분리했다가 다시 연결하세요.")
     print(f"장치 별칭: /dev/{SYMLINK_NAME}")
     return 0
 
