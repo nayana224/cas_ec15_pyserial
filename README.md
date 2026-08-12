@@ -9,15 +9,43 @@
 </p>
 
 CAS **EC-15 전자저울**의 RS-232 데이터를 USB-RS232 변환기를 통해 읽는 Python / ROS 2 도구입니다.
-이 repository 하나에서 단독 serial 확인, ROS 2 build, udev 별칭 설정, ROS 2 topic 발행까지 테스트합니다.
+이 repository 하나에서 단독 serial 확인, ROS 2 build, udev 별칭 설정, ROS 2 topic 발행까지 테스트할 수 있습니다.
 
 - Ubuntu / Jetson Linux
 - pySerial 기반 원본 수신 확인
 - `NET` / `net` 안정 상태 구분
 - ROS 2 `std_msgs/msg/Float64` 중량 발행
 - USB serial 고정 별칭 `/dev/cas_ec15` 설정
+- MIT License
+
+## Quick Start
+
+이미 필수 패키지와 udev 별칭 설정이 끝난 개발 환경이라면 아래 순서로 바로 실행합니다.
+
+```bash
+cd ~/inpyo_ws/cas_ec15_pyserial
+source /opt/ros/humble/setup.bash
+
+colcon build --symlink-install
+source install/setup.bash
+ros2 run cas_ec15_pyserial ec15_weight_node
+```
+
+다른 terminal에서 중량 topic을 확인합니다.
+
+```bash
+cd ~/inpyo_ws/cas_ec15_pyserial
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+
+ros2 topic echo /weight_g
+```
+
+처음 설정하는 장비라면 아래의 **설치 → serial 확인 → ROS 2 build → udev 설정 → ROS 2 실행** 순서로 진행합니다.
 
 ## 1. 설치
+
+필수 패키지를 한 번 설치합니다.
 
 ```bash
 cd ~/inpyo_ws/cas_ec15_pyserial
@@ -33,6 +61,8 @@ chmod +x ec15_check.sh
 ```
 
 ## 2. 단독 serial 확인
+
+ROS 2를 사용하기 전에 EC-15와 USB-RS232 통신이 정상인지 먼저 확인합니다.
 
 연결된 serial port를 확인합니다.
 
@@ -112,7 +142,7 @@ cas_ec15_pyserial ec15_weight_node
 
 `/dev/ttyUSB0`는 USB 연결 순서에 따라 달라질 수 있으므로 ROS 2에서는 `/dev/cas_ec15` 별칭을 사용합니다.
 
-udev 설정 도구는 지정한 현재 serial 장치에서 `vendor`, `product`, `serial` 정보를 읽어 rule을 생성합니다. 실제 장치 식별자를 코드에 하드코딩하지 않습니다.
+udev 설정 도구는 지정한 현재 serial 장치에서 `vendor`, `product`, `serial` 정보를 읽어 rule을 생성합니다. 장치 식별자를 코드에 하드코딩하지 않습니다.
 
 먼저 설치될 rule만 확인합니다.
 
@@ -121,7 +151,9 @@ ros2 run cas_ec15_pyserial ec15_udev_setup show \
   --device /dev/ttyUSB0
 ```
 
-현재 사용 중인 FTDI 변환기에서는 다음 식별자가 확인되었습니다.
+### 현재 개발 장비 예시
+
+현재 사용 중인 FTDI USB-RS232 변환기에서는 아래 식별자가 확인되었습니다. 다른 변환기를 사용하면 값은 달라질 수 있습니다.
 
 ```text
 ID_VENDOR_ID=0403
@@ -129,13 +161,13 @@ ID_MODEL_ID=6001
 ID_SERIAL_SHORT=FTSIU2PV
 ```
 
-따라서 예상 rule은 다음 형태입니다.
+이 장비에서 생성되는 rule은 다음 형태입니다.
 
 ```text
 SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTRS{serial}=="FTSIU2PV", SYMLINK+="cas_ec15"
 ```
 
-내용이 맞으면 한 번만 설치합니다.
+`show` 결과의 장치 정보가 실제 EC-15 USB-RS232 변환기와 맞는지 확인한 뒤 한 번만 설치합니다.
 
 ```bash
 ros2 run cas_ec15_pyserial ec15_udev_setup install \
@@ -336,38 +368,28 @@ Baud rate가 불확실할 때만 시험합니다.
 ```text
 cas_ec15_pyserial/
 ├── assets/
-│   └── cas_ec15.jpg
+│   └── cas_ec15.jpg                 # README 이미지
 ├── cas_ec15_pyserial/
 │   ├── __init__.py
-│   ├── protocol.py
-│   ├── ros2_node.py
-│   └── udev_setup.py
+│   ├── protocol.py                  # EC-15 중량 문자열 parser
+│   ├── ros2_node.py                 # 안정 중량 /weight_g publisher
+│   └── udev_setup.py                # /dev/cas_ec15 udev rule 설정
 ├── resource/
-│   └── cas_ec15_pyserial
-├── .gitignore
-├── EC_KOR_UM.pdf
+│   └── cas_ec15_pyserial            # ament package resource marker
+├── EC_KOR_UM.pdf                    # CAS EC 시리즈 사용자 매뉴얼
+├── LICENSE                          # MIT License
 ├── README.md
-├── ec15_check.sh
-├── ec15_reader.py
-├── package.xml
-├── requirements.txt
+├── ec15_check.sh                    # ROS 없이 serial 진단 환경 준비 및 실행
+├── ec15_reader.py                   # serial 데이터 수신 확인 CLI
+├── package.xml                      # ROS 2 package metadata
+├── requirements.txt                 # standalone 진단용 Python dependency
 ├── setup.cfg
-├── setup.py
-├── test_ec15_reader.py
-└── test_udev_setup.py
+├── setup.py                         # ament_python / console_scripts 설정
+├── test_ec15_reader.py              # parser 회귀 테스트
+└── test_udev_setup.py               # udev rule 생성 및 입력 검증 테스트
 ```
 
-| 파일 | 역할 |
-|---|---|
-| `cas_ec15_pyserial/protocol.py` | CLI와 ROS 2가 공유하는 EC-15 중량 parser |
-| `cas_ec15_pyserial/ros2_node.py` | 안정 중량 ROS 2 publisher |
-| `cas_ec15_pyserial/udev_setup.py` | `/dev/cas_ec15` udev rule 설정 |
-| `ec15_check.sh` | `.venv` 생성, pySerial 설치, 단독 reader 실행 |
-| `ec15_reader.py` | serial 데이터 수신 확인용 CLI |
-| `test_ec15_reader.py` | parser 회귀 테스트 |
-| `test_udev_setup.py` | udev rule 생성 및 입력 검증 테스트 |
-| `package.xml`, `setup.py`, `setup.cfg` | ROS 2 `ament_python` package metadata |
-| `EC_KOR_UM.pdf` | CAS EC 시리즈 사용자 매뉴얼 |
+`build/`, `install/`, `log/`, `.venv/`, `__pycache__/` 같은 로컬 생성물은 `.gitignore`로 제외합니다.
 
 ## 요구 환경
 
