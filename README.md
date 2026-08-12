@@ -8,13 +8,14 @@
   />
 </p>
 
-CAS **EC-15 전자저울**의 RS-232 데이터를 USB-RS232 변환기를 통해 읽는 간단한 Python 도구입니다.
+CAS **EC-15 전자저울**의 RS-232 데이터를 USB-RS232 변환기를 통해 읽는 Python 도구입니다.
+단독 pySerial 확인 도구와 ROS 2용 얇은 adapter를 함께 제공합니다.
 
 - Ubuntu / Jetson Linux에서 실행
 - 시리얼 포트 목록 확인
 - `NET`과 `net`을 구분해 안정 상태 표시
 - EC-15 원본 출력 확인
-- `.venv`를 사용해 시스템 Python 환경과 분리
+- ROS 2에서 안정 중량을 `std_msgs/msg/Float64`로 발행
 
 ---
 
@@ -70,6 +71,77 @@ USB 시리얼 장치가 하나만 감지되면 포트를 생략할 수 있습니
 ```
 
 종료는 `Ctrl+C`를 사용합니다.
+
+---
+
+## ROS 2 adapter
+
+ROS 2 package 이름은 `cas_ec15_pyserial`, executable은 `ec15_weight_node`입니다.
+기존 pySerial 확인 도구와 동일한 parser를 사용하며, 대문자 `NET`으로 수신된 **안정 중량만** 발행합니다.
+
+### Interface
+
+| 항목 | 기본값 | 의미 |
+|---|---|---|
+| topic | `weight_g` | 안정 중량 [g], `std_msgs/msg/Float64` |
+| parameter `port` | `/dev/ttyUSB0` | EC-15가 연결된 serial port |
+| parameter `baudrate` | `9600` | `2400`, `4800`, `9600` 중 하나 |
+| parameter `topic_name` | `weight_g` | 발행할 relative topic 이름 |
+
+`weight_g`는 relative topic이므로 namespace 없이 실행하면 `/weight_g`가 됩니다.
+저울이 불안정하여 `net`을 출력하는 동안에는 새 중량 message를 발행하지 않습니다.
+
+### 기존 ROS 2 workspace에 넣기
+
+이 repository를 사용할 workspace의 `src/` 아래에 둡니다.
+
+```bash
+cd ~/inpyo_ws/<workspace>/src
+git clone https://github.com/nayana224/cas_ec15_pyserial.git
+
+cd ~/inpyo_ws/<workspace>
+source /opt/ros/humble/setup.bash
+rosdep install -i --from-paths src --rosdistro humble -y
+colcon build --packages-select cas_ec15_pyserial
+source install/setup.bash
+```
+
+ROS 2 Humble의 `ament_python` package 구조와 `console_scripts` entry point 방식을 사용합니다.
+
+### 실행
+
+```bash
+ros2 run cas_ec15_pyserial ec15_weight_node \
+  --ros-args \
+  -p port:=/dev/ttyUSB0 \
+  -p baudrate:=9600
+```
+
+다른 terminal에서 확인:
+
+```bash
+source /opt/ros/humble/setup.bash
+source ~/inpyo_ws/<workspace>/install/setup.bash
+ros2 topic echo /weight_g
+```
+
+예상 출력:
+
+```text
+data: 9.0
+---
+```
+
+다른 시스템과 합칠 때는 node 코드를 수정하지 않고 namespace 또는 `topic_name` parameter로 topic을 정합니다.
+
+```bash
+ros2 run cas_ec15_pyserial ec15_weight_node \
+  --ros-args \
+  -r __ns:=/target_mass \
+  -p topic_name:=scale_weight_g
+```
+
+이 경우 topic은 `/target_mass/scale_weight_g`가 됩니다.
 
 ---
 
@@ -152,7 +224,7 @@ RAW  | Tare:          g
 | `WEIGHT ... 안정` | 안정 상태로 파싱된 중량값 |
 | `WEIGHT ... 불안정` | 아직 안정되지 않은 중량값 |
 
-실제 제어 로직에서는 보통 대문자 `NET` 값만 사용합니다.
+ROS 2 adapter는 대문자 `NET` 값만 발행합니다.
 
 ---
 
@@ -177,6 +249,17 @@ RAW  | Tare:          g
 .venv/bin/python -m unittest -v test_ec15_reader.py
 ```
 
+ROS 2 package는 workspace에서 다음 순서로 확인합니다.
+
+```bash
+source /opt/ros/humble/setup.bash
+colcon build --packages-select cas_ec15_pyserial
+source install/setup.bash
+ros2 pkg executables cas_ec15_pyserial
+```
+
+정상이라면 `cas_ec15_pyserial ec15_weight_node`가 표시됩니다.
+
 ---
 
 ## 문제 해결
@@ -191,7 +274,7 @@ sudo usermod -aG dialout "$USER"
 
 그다음 로그아웃 후 다시 로그인합니다.
 
-현재 터미널에서만 임시 확인하려면:
+현재 terminal에서만 임시 확인하려면:
 
 ```bash
 sudo chmod a+rw /dev/ttyUSB0
@@ -235,21 +318,32 @@ sudo apt install -y python3-venv python3-pip
 cas_ec15_pyserial/
 ├── assets/
 │   └── cas_ec15.jpg
+├── cas_ec15_pyserial/
+│   ├── __init__.py
+│   ├── protocol.py
+│   └── ros2_node.py
+├── resource/
+│   └── cas_ec15_pyserial
 ├── .gitignore
 ├── EC_KOR_UM.pdf
 ├── README.md
 ├── ec15_check.sh
 ├── ec15_reader.py
+├── package.xml
 ├── requirements.txt
+├── setup.cfg
+├── setup.py
 └── test_ec15_reader.py
 ```
 
 | 파일 | 역할 |
 |---|---|
-| `ec15_check.sh` | 가상환경 생성, pySerial 설치, 프로그램 실행 |
-| `ec15_reader.py` | 시리얼 데이터 수신 및 안정 중량 파싱 |
+| `cas_ec15_pyserial/protocol.py` | CLI와 ROS 2가 공유하는 EC-15 중량 parser |
+| `cas_ec15_pyserial/ros2_node.py` | 안정 중량 ROS 2 publisher |
+| `ec15_check.sh` | `.venv` 생성, pySerial 설치, 단독 reader 실행 |
+| `ec15_reader.py` | 시리얼 데이터 수신 확인용 CLI |
 | `test_ec15_reader.py` | 중량 문자열 parser 회귀 테스트 |
-| `requirements.txt` | Python 의존성 |
+| `package.xml`, `setup.py`, `setup.cfg` | ROS 2 `ament_python` package metadata |
 | `EC_KOR_UM.pdf` | CAS EC 시리즈 사용자 매뉴얼 |
 
 ---
@@ -258,6 +352,7 @@ cas_ec15_pyserial/
 
 - Python 3.10 이상 권장
 - pySerial 3.5 이상
+- ROS 2 Humble (ROS 2 adapter 사용 시)
 - Ubuntu / Jetson Linux
 - CAS EC-15
 - USB-RS232 변환기
