@@ -86,7 +86,6 @@ ROS 2 package 이름은 `cas_ec15_pyserial`, executable은 `ec15_weight_node`입
 | topic | `weight_g` | 안정 중량 [g], `std_msgs/msg/Float64` |
 | parameter `port` | `/dev/ttyUSB0` | EC-15가 연결된 serial port |
 | parameter `baudrate` | `9600` | `2400`, `4800`, `9600` 중 하나 |
-| parameter `topic_name` | `weight_g` | 발행할 relative topic 이름 |
 
 `weight_g`는 relative topic이므로 namespace 없이 실행하면 `/weight_g`가 됩니다.
 저울이 불안정하여 `net`을 출력하는 동안에는 새 중량 message를 발행하지 않습니다.
@@ -132,13 +131,13 @@ data: 9.0
 ---
 ```
 
-다른 시스템과 합칠 때는 node 코드를 수정하지 않고 namespace 또는 `topic_name` parameter로 topic을 정합니다.
+다른 시스템과 합칠 때는 node 코드를 수정하지 않고 ROS namespace와 topic remap을 사용합니다.
 
 ```bash
 ros2 run cas_ec15_pyserial ec15_weight_node \
   --ros-args \
   -r __ns:=/target_mass \
-  -p topic_name:=scale_weight_g
+  -r weight_g:=scale_weight_g
 ```
 
 이 경우 topic은 `/target_mass/scale_weight_g`가 됩니다.
