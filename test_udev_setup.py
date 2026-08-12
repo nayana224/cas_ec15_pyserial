@@ -25,6 +25,26 @@ class UdevRuleTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             build_rule({"ID_VENDOR_ID": "0403", "ID_MODEL_ID": "6001"})
 
+    def test_build_rule_rejects_invalid_usb_id(self) -> None:
+        with self.assertRaises(ValueError):
+            build_rule(
+                {
+                    "ID_VENDOR_ID": "0403\"",
+                    "ID_MODEL_ID": "6001",
+                    "ID_SERIAL_SHORT": "FTSIU2PV",
+                }
+            )
+
+    def test_build_rule_rejects_invalid_serial(self) -> None:
+        with self.assertRaises(ValueError):
+            build_rule(
+                {
+                    "ID_VENDOR_ID": "0403",
+                    "ID_MODEL_ID": "6001",
+                    "ID_SERIAL_SHORT": 'FTSIU2PV"',
+                }
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
