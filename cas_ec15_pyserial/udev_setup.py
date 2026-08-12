@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+import re
 import subprocess
 import tempfile
 
 
 RULE_PATH = Path("/etc/udev/rules.d/99-cas-ec15.rules")
 SYMLINK_NAME = "cas_ec15"
+USB_ID_PATTERN = re.compile(r"^[0-9A-Fa-f]{4}$")
+SERIAL_PATTERN = re.compile(r"^[A-Za-z0-9._-]+$")
 
 
 def read_udev_properties(device: str) -> dict[str, str]:
@@ -31,16 +34,34 @@ def read_udev_properties(device: str) -> dict[str, str]:
 
 def build_rule(properties: dict[str, str]) -> str:
     """USB serial 장치를 고유 serial 기반 symlink rule로 만든다."""
-    required = ("ID_VENDOR_ID", "ID_MODEL_ID", "ID_SERIAL_SHORT")
-    missing = [key for key in required if not properties.get(key)]
+    vendor_id = properties.get("ID_VENDOR_ID", "")
+    model_id = properties.get("ID_MODEL_ID", "")
+    serial = properties.get("ID_SERIAL_SHORT", "")
+
+    missing = [
+        key
+        for key, value in (
+            ("ID_VENDOR_ID", vendor_id),
+            ("ID_MODEL_ID", model_id),
+            ("ID_SERIAL_SHORT", serial),
+        )
+        if not value
+    ]
     if missing:
         raise ValueError(f"udev property missing: {', '.join(missing)}")
 
+    if not USB_ID_PATTERN.fullmatch(vendor_id):
+        raise ValueError("invalid ID_VENDOR_ID")
+    if not USB_ID_PATTERN.fullmatch(model_id):
+        raise ValueError("invalid ID_MODEL_ID")
+    if not SERIAL_PATTERN.fullmatch(serial):
+        raise ValueError("invalid ID_SERIAL_SHORT")
+
     return (
         'SUBSYSTEM=="tty", '
-        f'ATTRS{{idVendor}}=="{properties["ID_VENDOR_ID"]}", '
-        f'ATTRS{{idProduct}}=="{properties["ID_MODEL_ID"]}", '
-        f'ATTRS{{serial}}=="{properties["ID_SERIAL_SHORT"]}", '
+        f'ATTRS{{idVendor}}=="{vendor_id}", '
+        f'ATTRS{{idProduct}}=="{model_id}", '
+        f'ATTRS{{serial}}=="{serial}", '
         f'SYMLINK+="{SYMLINK_NAME}"\n'
     )
 
