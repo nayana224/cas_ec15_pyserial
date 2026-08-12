@@ -22,20 +22,16 @@ class Ec15WeightNode(Node):
 
         self.declare_parameter("port", "/dev/ttyUSB0")
         self.declare_parameter("baudrate", 9600)
-        self.declare_parameter("topic_name", "weight_g")
 
         port = self.get_parameter("port").value
         baudrate = self.get_parameter("baudrate").value
-        topic_name = self.get_parameter("topic_name").value
 
         if not isinstance(port, str) or not port:
             raise ValueError("parameter 'port' must be a non-empty string")
         if baudrate not in (2400, 4800, 9600):
             raise ValueError("parameter 'baudrate' must be one of 2400, 4800, 9600")
-        if not isinstance(topic_name, str) or not topic_name:
-            raise ValueError("parameter 'topic_name' must be a non-empty string")
 
-        self._publisher = self.create_publisher(Float64, topic_name, 10)
+        self._publisher = self.create_publisher(Float64, "weight_g", 10)
         self._weights: queue.Queue[float] = queue.Queue(maxsize=1)
         self._stop_event = threading.Event()
 
@@ -61,7 +57,7 @@ class Ec15WeightNode(Node):
         self._publish_timer = self.create_timer(0.02, self._publish_latest_weight)
 
         self.get_logger().info(
-            f"EC-15 connected: port={port}, baudrate={baudrate}, topic={topic_name}"
+            f"EC-15 connected: port={port}, baudrate={baudrate}, topic=weight_g"
         )
 
     def _read_serial(self) -> None:
